@@ -551,7 +551,6 @@ def main():
     # See all possible arguments in src/transformers/training_args.py
     # or by passing the --help flag to this script.
     # We now keep distinct sets of args, for a cleaner separation of concerns.
-
     parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArguments))
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
@@ -709,7 +708,14 @@ def main():
         print(tokenizer.eos_token, tokenizer.eos_token_id)
         print(tokenizer.bos_token, tokenizer.bos_token_id)
 
+    # 若使用前缀微调，则使用GPT2，保持原有参数不变
     if model_args.tuning_mode == 'prefixtune': # prefixtune
+        '''
+        gpt2: the language model
+        model: the modified encoder
+        '''
+
+        # 保持模型参数不变
         for param in model.base_model.parameters():
             param.requires_grad = False
 
@@ -719,7 +725,9 @@ def main():
 
         print('loading the prefix model from ', model_args.prefixModel_name_or_path)
         # print(bool(".ckpt" in model_args.prefixModel_name_or_path))
-        if model_args.optim_prefix == 'yes':
+        
+        # 默认值为真
+        if model_args.optim_prefix == 'yes': 
             optim_prefix_bool = True
         elif model_args.optim_prefix == 'no':
             optim_prefix_bool = False
@@ -730,6 +738,7 @@ def main():
             config2 = AutoConfig.from_pretrained(model_args.prefixModel_name_or_path, cache_dir=model_args.cache_dir)
             # print(config2)
 
+            # 默认值为激活, 直接在原有的transformer的基础上面修改得到的
             if model_args.prefix_mode == 'embedding':
                 model = PrefixEmbTuning.from_pretrained(
                         model_args.prefixModel_name_or_path,
@@ -1168,7 +1177,6 @@ def main():
             # )
 
 
-
     # Initialize our Trainer
     # HERE!
     # trainer = Trainer(
@@ -1179,9 +1187,9 @@ def main():
     #     eval_dataset=eval_dataset,
     #     prediction_loss_only=True,
     # )
-
+    # 构造训练器
     if (model_args.tuning_mode == 'prefixtune'):
-        if (data_args.dataless == 'yes'):
+        if (data_args.dataless == 'yes'): # default is no
             trainer = Trainer_Prefix(
                 model=model,
                 model_gpt2=gpt2,
@@ -1208,7 +1216,7 @@ def main():
             elif 'sent' in training_args.output_dir:
                 discri_labels = ['negative', 'positive']
             trainer = Trainer_Prefix(
-                model=model,
+                model=model, # prefix_tuning object
                 tokenizer=tokenizer,
                 discri_labels=discri_labels,
                 model_gpt2=gpt2,
@@ -1252,7 +1260,7 @@ def main():
 
     # Training
 
-    if 'lowdata' in training_args.output_dir:
+    if 'lowdata' in training_args.output_dir: # False
         eval_output = trainer.evaluate()
         # perplexity = math.exp(eval_output["eval_loss"])
         print('initial eval loss is {}'.format(eval_output["eval_loss"]))
@@ -1274,7 +1282,7 @@ def main():
         if trainer.is_world_master():
             tokenizer.save_pretrained(training_args.output_dir)
 
-        if not (data_args.dataless == 'yes'):
+        if not (data_args.dataless == 'yes'): # default no
             trainer.train(model_path=model_path)
         elif False:
             trainer.train_dataless(model_path=model_path, verbose=True)

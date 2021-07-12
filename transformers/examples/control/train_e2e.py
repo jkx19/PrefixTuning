@@ -164,12 +164,12 @@ if __name__ == '__main__':
 
     elif args.mode == 'webnlg':
         # 2017 Challeng Version.
-        TRAIN_FILE = "/u/scr/xlisali/WebNLG/webnlg-dataset/webnlg_challenge_2017/train.json"
-        TEST_FILE = "/u/scr/xlisali/WebNLG/webnlg-dataset/webnlg_challenge_2017/dev.json"
+        # TRAIN_FILE = "/u/scr/xlisali/WebNLG/webnlg-dataset/webnlg_challenge_2017/train.json"
+        # TEST_FILE = "/u/scr/xlisali/WebNLG/webnlg-dataset/webnlg_challenge_2017/dev.json"
 
         # v2
-        # TRAIN_FILE = "/u/scr/xlisali/WebNLG/webnlg-dataset/release_v2/json/webnlg_release_v2_train.json"
-        # TEST_FILE =  "/u/scr/xlisali/WebNLG/webnlg-dataset/release_v2/json/webnlg_release_v2_dev.json"
+        TRAIN_FILE = "/home/kaixuanj/p_tuning/PrefixTuning/datasets/webnlg_release_v2_train.json"
+        TEST_FILE =  "/home/kaixuanj/p_tuning/PrefixTuning/datasets/webnlg_release_v2_dev.json"
         folder_name = "webnlg_models/"
 
     elif args.mode == 'writingPrompts':
