@@ -22,7 +22,14 @@ class ClassificationHead(torch.nn.Module):
 
 
 class PrefixTuning(GPT2PreTrainedModel):
-    """Classification Head for  transformer encoders"""
+    r"""
+    Classification Head for  transformer encoders
+
+    主要属性包括：
+        1. self.wte, self.control_trans: 将prefix_length的自由度编码为2*numlayer*dim的prompt
+        
+        2. self.get-prompt: 将上面的函数进行组合，最终得到对于每层的输入
+    """
     def __init__(self, config, model_gpt2, optim_prefix=False, preseqlen=5, use_infix=False, deep_param=False):
         super().__init__(config)
         print('under the PrefixTuning model')
@@ -100,12 +107,6 @@ class PrefixTuning(GPT2PreTrainedModel):
 
 
 
-
-
-
-
-
-
         if False:
             if hasattr(config, '_my_arg_task_mode'):
                 self.task_mode = config._my_arg_task_mode
@@ -143,7 +144,7 @@ class PrefixTuning(GPT2PreTrainedModel):
         else:
             self.mode_para = 4
 
-        if not self.optim_prefix:
+        if not self.optim_prefix: # False
             if self.train_weights:
                 self.wte = model_gpt2.transformer.wte
                 for p in self.wte.parameters():
@@ -195,8 +196,7 @@ class PrefixTuning(GPT2PreTrainedModel):
             print('mode_para=0, for data2text Instruction based, just optimize a set of parameters ;) ')
             print('preseqlen is {}, under the mode of optimizing prefix directly'.format(self.preseqlen))
 
-
-            if self.lowdata and self.lowdata_token is not None:
+            if self.lowdata and self.lowdata_token is not None: # False
                 low_data_init = 3
                 if low_data_init == 1:
                     print('IN THE LOW DATA SETTING, EXPLORE INITIALIZATION FOR DIRECT OPTIM...')
@@ -238,13 +238,9 @@ class PrefixTuning(GPT2PreTrainedModel):
                         nn.Linear(self.mid_dim, config.n_layer * 2 * config.n_embd))
                     self.get_prompt = self.get_prompt_p5
 
-
-
-
-
-
+            
             # DIFFERENT PARAMETRIZATION:
-            elif not deep_param:
+            elif not deep_param: # 运行这一部分
                 low_data_init = 0
                 print('UNDER PARAMETRIZATION 1')
                 self.input_tokens = torch.arange(self.preseqlen).long()
@@ -310,10 +306,11 @@ class PrefixTuning(GPT2PreTrainedModel):
         ###### just trying #########
         total_param = 0
         for name, param in self.named_parameters():
-            print(param.shape)
+            print(name, param.shape)
             total_param += param.numel()
         print('total param is {}'.format(total_param))
 
+        # low_data_init == 0
         if low_data_init == 2:
             self.lowdata_init_train2(gpt2=model_gpt2, tokenizer=tokenizer, sample_input=sample_input)
         elif low_data_init == 3:
@@ -596,6 +593,9 @@ class PrefixTuning(GPT2PreTrainedModel):
 
         if self.mode_para == 2 and src_attn is not None and tgt_attn is not None:
             attention_mask = torch.cat([src_attn, tgt_attn], dim=1)
+        
+        input_ids = input_ids.to(gpt2_model.device)
+        labels = labels.to(gpt2_model.device)
         output = gpt2_model(input_ids=input_ids, control_code=None, weights=weights, emb_match=emb_match,
                             past_key_values=past_key_values, attention_mask=attention_mask,
                             token_type_ids=token_type_ids, position_ids=position_ids,

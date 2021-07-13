@@ -548,6 +548,14 @@ def get_classifier(
     return classifier, label_id
 
 def main():
+    '''
+    检查参数是否正确，之后加载令牌器以及预训练模型配置，根据配置加载预训练好的模型，并向嵌入的词汇表中添加一个词汇。
+    当使用前缀微调时，构造一个参数固定的GPT2，之后建立一个PrefixTuning对象为model。
+    使用前缀微调时，model不依赖于GPT2.。
+    之后构造一个Prefix_Trainer
+    加载对应的数据集，将model, gpt2, dataset送入prefix-trainer。
+    调用prefix-trainer.train()进行训练
+    '''
     # See all possible arguments in src/transformers/training_args.py
     # or by passing the --help flag to this script.
     # We now keep distinct sets of args, for a cleaner separation of concerns.
@@ -556,7 +564,7 @@ def main():
 
     # TEMP = (model_args.tuning_mode == 'prefixtune')
     # DATALESS = (data_args.dataless == 'yes')
-
+    # 进行检查
     if data_args.eval_data_file is None and training_args.do_eval:
         raise ValueError(
             "Cannot do evaluation without an evaluation data file. Either supply a file to --eval_data_file "
@@ -697,16 +705,17 @@ def main():
         # tokenizer.pad_token_id = tokenizer.eos_token_id
         # tokenizer.pad_token = tokenizer.eos_token
         print(tokenizer.pad_token, tokenizer.pad_token_id)
+    # 实际调用的是下面的这一部分，向词汇表中添加了一个新的词汇
     else:
-        print(model_args.tuning_mode)
-        print('adapting the size of the model embedding to include [PAD]')
-        print('len(tokenizer) = ', len(tokenizer))
+        # print(model_args.tuning_mode)
+        # print('adapting the size of the model embedding to include [PAD]')
+        # print('len(tokenizer) = ', len(tokenizer))
         num_added_tokens = tokenizer.add_special_tokens(
             {'pad_token': '[PAD]'})
         embedding_layer = model.resize_token_embeddings(len(tokenizer))
-        print('len(tokenizer) = ', len(tokenizer))
-        print(tokenizer.eos_token, tokenizer.eos_token_id)
-        print(tokenizer.bos_token, tokenizer.bos_token_id)
+        # print('len(tokenizer) = ', len(tokenizer))
+        # print(tokenizer.eos_token, tokenizer.eos_token_id)
+        # print(tokenizer.bos_token, tokenizer.bos_token_id)
 
     # 若使用前缀微调，则使用GPT2，保持原有参数不变
     if model_args.tuning_mode == 'prefixtune': # prefixtune
@@ -734,11 +743,10 @@ def main():
         else:
             assert False, "model_args.optim_prefix should be either yes or no"
 
-        if model_args.prefixModel_name_or_path is not None:
+        if model_args.prefixModel_name_or_path is not None: # None
             config2 = AutoConfig.from_pretrained(model_args.prefixModel_name_or_path, cache_dir=model_args.cache_dir)
             # print(config2)
 
-            # 默认值为激活, 直接在原有的transformer的基础上面修改得到的
             if model_args.prefix_mode == 'embedding':
                 model = PrefixEmbTuning.from_pretrained(
                         model_args.prefixModel_name_or_path,
@@ -790,6 +798,7 @@ def main():
 
 
             print('training the prefix model from scratch. ')
+            # The default mode is 'activation'
             if model_args.prefix_mode == 'embedding':
 
                 # specific parametrization for embedding.
@@ -802,14 +811,10 @@ def main():
                 #                         use_infix=(data_args.format_mode == 'infix'))
             elif model_args.prefix_mode == 'activation':
                 model = PrefixTuning(config_prefix, model_gpt2=gpt2)
-
-                # model = PrefixTuning(config, model_gpt2=gpt2,
-                #                      optim_prefix=optim_prefix_bool, preseqlen=model_args.preseqlen,
-                #                      use_infix=(data_args.format_mode == 'infix'))
             else:
                 assert False, "invalid prefix mode"
 
-        if (data_args.dataless == 'yes'):
+        if (data_args.dataless == 'yes'): # no
             print('in dataless setting, loading the discriminator. ')
             if model_args.dataless_control_type == 0:
                 discri_model, _ = get_classifier('sentiment', 1, training_args.device )
@@ -1065,16 +1070,8 @@ def main():
                 assert False, "invalid prefix mode"
 
 
-
-
-
-
-
-
-
-
-
     # Get datasets
+    # data_args.task_mode: webnlg
     if data_args.task_mode == 'generate':
 
         prompt_text = '[BOS] By the riverside, '
@@ -1117,7 +1114,6 @@ def main():
                 max_span_length=data_args.max_span_length,
             )
         else:
-
             if data_args.task_mode == 'embMatch':
                 data_collator = DataCollatorForEmbMatchLanguageModeling(
                     tokenizer=tokenizer, mlm=data_args.mlm, mlm_probability=data_args.mlm_probability
@@ -1215,6 +1211,7 @@ def main():
                 discri_labels = ['world', 'sports', 'business', 'science']
             elif 'sent' in training_args.output_dir:
                 discri_labels = ['negative', 'positive']
+            
             trainer = Trainer_Prefix(
                 model=model, # prefix_tuning object
                 tokenizer=tokenizer,
@@ -1275,21 +1272,21 @@ def main():
             model_args.model_name_or_path
             if model_args.model_name_or_path is not None and os.path.isdir(model_args.model_name_or_path)
             else None
-        )
+        )# None
 
         # For convenience, we also re-save the tokenizer to the same directory,
         # so that you can share your model easily on huggingface.co/models =)
-        if trainer.is_world_master():
+        if trainer.is_world_master(): # True
             tokenizer.save_pretrained(training_args.output_dir)
 
-        if not (data_args.dataless == 'yes'): # default no
-            trainer.train(model_path=model_path)
+        if not (data_args.dataless == 'yes'): # dafault
+            trainer.train(model_path=model_path) # model_path == None
         elif False:
             trainer.train_dataless(model_path=model_path, verbose=True)
         else:
             trainer.train_amortized_pplm(model_path=model_path, verbose=True)
 
-        if 'lowdata' not in training_args.output_dir:
+        if 'lowdata' not in training_args.output_dir: # True
             trainer.save_model()
 
             if model_args.tuning_mode == 'bothtune':
