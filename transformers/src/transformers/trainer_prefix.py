@@ -615,8 +615,6 @@ class Trainer_Prefix:
             #     self.optimizer, num_warmup_steps=self.args.warmup_steps
             # )
 
-
-
     def setup_wandb(self):
         """
         Setup the optional Weights & Biases (`wandb`) integration.
@@ -758,6 +756,7 @@ class Trainer_Prefix:
                 torch.save(self.optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
                 torch.save(self.lr_scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
 
+# Trainer_prefix特有的：从本行至1533行
     def _tensorize_batch(
         self, examples: List[Union[List[int], torch.Tensor, Dict[str, torch.Tensor]]], padding_value: Optional[int]
     ) -> torch.Tensor:
@@ -1531,6 +1530,7 @@ class Trainer_Prefix:
             generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True
         )
         return self.lmap(str.strip, gen_text)
+# 特有代码结束
 
     def train(self, model_path: Optional[str] = None, trial: Union["optuna.Trial", Dict[str, Any]] = None):
         """
@@ -1547,7 +1547,7 @@ class Trainer_Prefix:
         self._hp_search_setup(trial)
 
         # Model re-init
-        if self.model_init is not None:
+        if self.model_init is not None: # False
             # Seed must be set before instantiating the model when using model_init.
             set_seed(self.args.seed)
             model = self.model_init()
@@ -1584,7 +1584,7 @@ class Trainer_Prefix:
             )
             self.lr_scheduler.load_state_dict(torch.load(os.path.join(model_path, "scheduler.pt")))
 
-        model = self.model
+        model = self.model # A PrefixTuning object
         if self.args.fp16 and _use_apex:
             if not is_apex_available():
                 raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
@@ -1774,9 +1774,6 @@ class Trainer_Prefix:
 
                         self.log(logs)
 
-                    # print(self.args.evaluation_strategy == EvaluationStrategy.STEPS )
-                    # print(self.global_step % self.args.eval_steps == 0)
-                    # print()
 
                     if (
                         self.args.evaluation_strategy == EvaluationStrategy.STEPS
@@ -1787,14 +1784,14 @@ class Trainer_Prefix:
 
                         # URGENT, this is just for the low data setting, False otherwise.
                         #####################################################
-                        if 'lowdata' in self.args.output_dir or 'earlystop' in self.args.output_dir:
+                        if 'lowdata' in self.args.output_dir or 'earlystop' in self.args.output_dir: # 不一样
                             self.save_based_on_eval = True
                         else:
                             self.save_based_on_eval = False
                         print('if not see a line lowdata: below, then did not go into low data. ')
                         if self.save_based_on_eval and metrics["eval_loss"] < self.curr_best_eval:
                             print('lowdata:', self.global_step, self.curr_best_eval, metrics["eval_loss"],
-                                  'perplexity={}'.format(math.exp(metrics["eval_loss"])))
+                                  'perplexity={}'.format(math.exp(metrics["eval_loss"]))) # 这个print是新添加的
                             self.curr_best_eval = metrics["eval_loss"]
                             if hasattr(model, "module"):
                                 assert (
@@ -3526,9 +3523,5 @@ class Trainer_Prefix:
         # # print(q_logp[:3])
         # loss = -(reward2.mean())
         # print(loss)
-
-
-
-
 
 
